@@ -1,16 +1,6 @@
-if (typeof NMSS === 'undefined') {
-	NMSS = {}
-}
-
-NMSS.settings = null
-NMSS.flagged = []
-NMSS.loggedIn = false
-
-
-NMSS.init = function(modhash) {
+NMSS.process = function(modhash) {
 	NMSS.modhash = modhash
-	NMSS.loadSettings()
-	NMSS.loadFlagged()
+	NMSS.loggedIn = $('body').hasClass('loggedin')
 
 	if (NMSS.settings.enabled) {
 		$('body').addClass('nmssEnabled')
@@ -18,7 +8,7 @@ NMSS.init = function(modhash) {
 		if ($('body').hasClass('listing-page')) {
 			NMSS.processPosts()
 		}
-		else if ($('body').hasClass('comments-page')) {
+		else if (NMSS.loggedIn && $('body').hasClass('comments-page')) {
 			var isSubreddit = window.location.pathname.match(/^\/r\/([A-Za-z0-9_]+)\/comments/)
 			var isEnabledSub = (isSubreddit && (NMSS.settings.subs.indexOf('/r/'+isSubreddit[1]) >= 0))
 			if (isEnabledSub) {
@@ -32,59 +22,29 @@ NMSS.init = function(modhash) {
 	}
 }
 
-NMSS.loadSettings = function() {
-	NMSS.settings = {
-		enabled: true,
-		threshold: 100,
-		downvote: false,
-		subs: ['/r/pics']
-	}
-
-	var settingsStorage = localStorage.getItem('settings')
-	if (settingsStorage) {
-		$.extend(true, NMSS.settings, $.parseJSON(settingsStorage))
-	}
-	localStorage.setItem('settings', JSON.stringify(NMSS.settings))
-}
-
-NMSS.loadFlagged = function() {
-	var flagged = localStorage.getItem('flagged')
-
-	if (flagged === null) {
-		NMSS.flagged = {}
-		NMSS.saveFlagged()
-	}
-	else {
-		NMSS.flagged = $.parseJSON(flagged)
-	}
-}
-
-NMSS.saveFlagged = function() {
-	localStorage.setItem('flagged', JSON.stringify(NMSS.flagged))
-}
-
 NMSS.processPosts = function() {
-	var loggedin = $('body').hasClass('loggedin')
 	var posts = $('div.linklisting div.entry:not(.sobTagged)')
 	var isSubreddit = window.location.pathname.match(/^\/r\/([A-Za-z0-9_]+)($|\/)/)
 	var isEnabledSub = (isSubreddit && (NMSS.settings.subs.indexOf('/r/'+isSubreddit[1]) >= 0))
 
 	posts.each(function() {
-		var addLink = isEnabledSub
+		var thing = $(this).parent('div.thing')
+		var fullname = thing.attr('data-fullname')
 
-		if (!isEnabledSub) {
-			var subreddit = $(this).children('p.tagline').children('a.subreddit').text()
-			addLink = (NMSS.settings.subs.indexOf(subreddit) >= 0)
+		if (NMSS.flagged[fullname] || (NMSS.sobs && (NMSS.sobs[fullname] !== undefined) && (NMSS.sobs[fullname] >= NMSS.settings.threshold))) {
+			NMSS.hidePost(thing)
 		}
 
-		if (addLink) {
-			var thing = $(this).parent('div.thing')
-			var fullname = thing.attr('data-fullname')
+		if (NMSS.loggedIn) {
+			var addLink = isEnabledSub
 
-			NMSS.addFlagLink(this, fullname)
+			if (!isEnabledSub) {
+				var subreddit = $(this).children('p.tagline').children('a.subreddit').text()
+				addLink = (NMSS.settings.subs.indexOf(subreddit) >= 0)
+			}
 
-			if (NMSS.flagged[fullname] || (NMSS.sobs && (NMSS.sobs[fullname] !== undefined) && (NMSS.sobs[fullname] >= NMSS.settings.threshold))) {
-				NMSS.hidePost(thing)
+			if (addLink) {
+				NMSS.addFlagLink(this, fullname)
 			}
 		}
 	})
@@ -115,7 +75,7 @@ NMSS.clickedFlag = function(event) {
 		NMSS.updateFlagText(fullname, 'unflagging')
 		NMSS.votePost(NMSS.flagged[fullname], 0, function(ok, data) {
 			NMSS.updateFlagText(fullname, ok ? 'unflagged' : 'flagged')
-			console.log('[NMSS] unflag '+(ok ? 'OK' : 'ERROR')+': '+fullname)
+			NMSS.LOG('[NMSS] unflag '+(ok ? 'OK' : 'ERROR')+': '+fullname)
 			if (ok) {
 				delete NMSS.flagged[fullname]
 				NMSS.saveFlagged()
@@ -142,11 +102,11 @@ NMSS.clickedFlag = function(event) {
 					var postID = 't3_'+match[1]
 
 					if (resp[18] && (resp[18][3][0] === ".error.ALREADY_SUB.field-url")) {
-						console.log('[NMSS] submission exists: '+fullname)
+						NMSS.LOG('[NMSS] submission exists: '+fullname)
 						if (match) {
 							NMSS.votePost(postID, 1, function(ok, data) {
 								NMSS.updateFlagText(fullname, ok ? 'flagged' : 'unflagged')
-								console.log('[NMSS] flag (upvote) '+(ok ? 'OK' : 'ERROR')+': '+fullname)
+								NMSS.LOG('[NMSS] flag (upvote) '+(ok ? 'OK' : 'ERROR')+': '+fullname)
 								if (ok) {
 									NMSS.flagged[fullname] = postID
 									NMSS.saveFlagged()
@@ -158,23 +118,23 @@ NMSS.clickedFlag = function(event) {
 						NMSS.updateFlagText(fullname, 'flagged')
 						NMSS.flagged[fullname] = postID
 						NMSS.saveFlagged()
-						console.log('[NMSS] flag (submit) OK: '+fullname)
+						NMSS.LOG('[NMSS] flag (submit) OK: '+fullname)
 					}
 				}
 				else {
 					NMSS.updateFlagText(fullname, 'unflagged')
-					console.log('[NMSS] flag (submit) ERROR: '+fullname)
+					NMSS.LOG('[NMSS] flag (submit) ERROR: '+fullname)
 				}
 			}
 		)
 		.fail(function(jqXhr, textStatus, errorThrown) {
-			console.log(errorThrown)
+			NMSS.LOG(errorThrown)
 		})
 	}
 
 	if (NMSS.settings.downvote) {
 		NMSS.votePost(fullname, -1, function(ok, data) {
-			console.log('[NMSS] downvote '+(ok ? 'OK' : 'ERROR')+': '+fullname)
+			NMSS.LOG('[NMSS] downvote '+(ok ? 'OK' : 'ERROR')+': '+fullname)
 		})
 	}
 }
@@ -190,17 +150,17 @@ NMSS.votePost = function(fullname, dir, callback) {
 		function(data, textStatus, jQxhr) {
 			if (data.error) {
 				callback(false, data)
-				// console.log(data)
+				// NMSS.LOG(data)
 			}
 			else {
 				callback(true, data)
-				// console.log(msgSuccess)
+				// NMSS.LOG(msgSuccess)
 			}
 		}
 	)
 	.fail(function(jqXhr, textStatus, errorThrown) {
 		callback(false, errorThrown)
-		console.log(errorThrown)
+		NMSS.LOG(errorThrown)
 	})
 }
 
@@ -212,10 +172,10 @@ NMSS.updateFlagText = function(fullname, op) {
 		flag.innerText = 'sobbing...'
 	}
 	else if (op == 'unflagging') {
-	flag.innerText = 'unsobbing...'
+		flag.innerText = 'unsobbing...'
 	}
 	else if (op == 'flagged') {
-	flag.innerText = 'unsob'
+		flag.innerText = 'unsob'
 	}
 	else if (op == 'unflagged') {
 		flag.innerText = 'sob'
@@ -239,6 +199,7 @@ NMSS.hidePost = function(what) {
 
 NMSS.toggleNMSSEnabled = function() {
 	NMSS.settings.enabled = !NMSS.settings.enabled
+	NMSS.saveSettings()
 	$('body').toggleClass('nmssEnabled')
 }
 
@@ -269,7 +230,7 @@ window.addEventListener("neverEndingLoad", function() {
 
 // listen to the event we will create to fetch the modhash
 window.addEventListener("modhashDispatch", function(event) {
-	NMSS.init(event.detail)
+	NMSS.process(event.detail)
 }, false)
 
 // inject a script to the site to be able to access its objects (mainly the modhash)

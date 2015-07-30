@@ -1,6 +1,6 @@
 {
 	"name": "No More Sob Stories",
-	"version": "0.0.5",
+	"version": "0.0.6",
 	"manifest_version": 2,
 
 	"description": "Flag and hide sob stories on reddit",
@@ -21,12 +21,12 @@
 		{
 			"matches": ["*://reddit.com/*", "*://*.reddit.com/*"],
 			"run_at": "document_start",
-			"js": ["js/jquery.min.js", "js/fetchsobs.js"]
+			"js": ["js/jquery.min.js", "js/init.js"]
 		},
 		{
 		  "matches": ["*://reddit.com/*", "*://*.reddit.com/*"],
 		  "run_at": "document_end",
-		  "js": ["js/src.js"],
+		  "js": ["js/process.js"],
 			"css": ["css/styles.css"]
 		}
 	],
