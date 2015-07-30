@@ -1,0 +1,11 @@
+.thing .entry ul.buttons a.flagSobStory {
+  display: none;
+}
+
+body.nmssEnabled .thing .entry ul.buttons a.flagSobStory {
+  display: inline;
+}
+
+body.nmssEnabled .thing.flaggedSobStory {
+  display: none;
+}

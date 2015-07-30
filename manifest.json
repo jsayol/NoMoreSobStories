@@ -1,0 +1,39 @@
+{
+	"name": "No More Sob Stories",
+	"version": "0.0.1",
+	"manifest_version": 2,
+
+	"description": "Toggle reddit's sidebar",
+
+	"icons": {
+		"16": "img/icon16.png",
+		"48": "img/icon48.png",
+		"128": "img/icon128.png"
+	},
+
+	"permissions": [
+		"storage",
+		"*://reddit.com/*",
+		"*://*.reddit.com/*"
+	],
+
+	"content_scripts": [
+		{
+			"matches": ["*://reddit.com/*", "*://*.reddit.com/*"],
+			"run_at": "document_start",
+			"js": ["js/jquery.min.js", "js/fetchsobs.js"]
+		},
+		{
+		  "matches": ["*://reddit.com/*", "*://*.reddit.com/*"],
+		  "run_at": "document_end",
+		  "js": ["js/src.js"],
+			"css": ["css/styles.css"]
+		}
+	],
+
+	"content_security_policy": "default-src 'none'; script-src 'self'",
+
+	"web_accessible_resources": [
+		"js/inject.js"
+	]
+}
