@@ -1,6 +1,8 @@
 # No More Sob Stories
 Chrome extension to hide "sob stories" on reddit.
 
+**The extension is already published! [Just click here to go to the Chrome Web Store and install it.](https://chrome.google.com/webstore/detail/no-more-sob-stories/opecfkdocaeliamlmmmmghlmiehhacnk)**
+
 ## What's a sob story?
 According to google:
 > **sob sto·ry**
