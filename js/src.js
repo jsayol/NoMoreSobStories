@@ -129,7 +129,7 @@ NMSS.clickedFlag = function(event) {
 							NMSS.votePost(postID, 1, function(ok, data) {
 								NMSS.updateFlagText(fullname, ok ? 'flagged' : 'unflagged')
 								console.log('[NMSS] flag (upvote) '+(ok ? 'OK' : 'ERROR')+': '+fullname)
-								if (ok) {git init
+								if (ok) {
 									NMSS.flagged[fullname] = postID
 									NMSS.saveFlagged()
 								}
