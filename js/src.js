@@ -12,9 +12,19 @@ NMSS.init = function(modhash) {
 	NMSS.loadSettings()
 	NMSS.loadFlagged()
 
-	if (NMSS.settings.enabled && $('body').hasClass('listing-page')) {
+	if (NMSS.settings.enabled) {
 		$('body').addClass('nmssEnabled')
-		NMSS.processPosts()
+
+		if ($('body').hasClass('listing-page')) {
+			NMSS.processPosts()
+		}
+		else if ($('body').hasClass('comments-page')) {
+			var isSubreddit = window.location.pathname.match(/^\/r\/([A-Za-z0-9_]+)\/comments/)
+			var isEnabledSub = (isSubreddit && (NMSS.settings.subs.indexOf('/r/'+isSubreddit[1]) >= 0))
+			if (isEnabledSub) {
+				NMSS.processSinglePost()
+			}
+		}
 	}
 
 	if ($('#RESDropdownOptions')) {
@@ -78,6 +88,14 @@ NMSS.processPosts = function() {
 			}
 		}
 	})
+}
+
+NMSS.processSinglePost = function() {
+	var thing = $('div.linklisting div.thing')
+	var fullname = thing.attr('data-fullname')
+	var entry = thing.find('div.entry:not(.sobTagged)')
+
+	NMSS.addFlagLink(entry, fullname)
 }
 
 NMSS.addFlagLink = function(obj, fullname) {
