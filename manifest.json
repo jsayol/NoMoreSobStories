@@ -3,7 +3,7 @@
 	"version": "0.0.1",
 	"manifest_version": 2,
 
-	"description": "Toggle reddit's sidebar",
+	"description": "Flag and hide sob stories on reddit",
 
 	"icons": {
 		"16": "img/icon16.png",
