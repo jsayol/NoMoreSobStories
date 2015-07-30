@@ -1,7 +1,7 @@
 # No More Sob Stories
 Chrome extension to hide "sob stories" on reddit.
 
-# What's a sob story?
+## What's a sob story?
 According to google:
 > **sob sto·ry**
 
@@ -13,7 +13,7 @@ According to google:
 
 In practice, sob stories on reddit are those where people post a picture of their dead dog/grandma/grandpa/turtle/rock/whatever simply for the karma or the attention. The pictures tend to be rather bad and the posts only reach the front page because of the sad story in the title.
 
-# How does it work?
+## How does it work?
 The extension adds a small button on every post on /r/pics allowing the user to flag the post as a sob story.
 
 It looks like this: https://i.imgur.com/4AOkMoS.png
@@ -22,10 +22,10 @@ Aside from that, the extension checks the posts that other users have flagged as
 
 Internally, the extension uses a subreddit as its shared database. When a story is flagged for the first time, the extension creates a new submission in that subreddit. Whenever someone else flags the same story, it simply gets upvoted. All this happens internally so you don't need to worry about it, though. 
 
-# Ok, I installed it. Now what?
+## Ok, I installed it. Now what?
 You won't see much difference at first, until several people start flagging posts. So go ahead and do that whenever you find an offending story :) The more users use the extension and flag posts, the better for everyone.
 
-# What's next for the extension?
+## What's next for the extension?
 There's plenty to be added and improved. Here's a short ToDo list of things that are pending:
 
 * Add a way to see what stories the user has flagged.
