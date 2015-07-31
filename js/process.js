@@ -69,6 +69,10 @@ NMSS.addFlagLink = function(obj, fullname) {
 
 NMSS.clickedFlag = function(event) {
 	var thing = $(this).parents("div.thing")
+	NMSS.flagPost(thing)
+}
+
+NMSS.flagPost = function(thing, captcha) {
 	var fullname = thing.attr('data-fullname')
 	var title = thing.find('p.title a.title').text()
 
@@ -92,26 +96,45 @@ NMSS.clickedFlag = function(event) {
 	else {
 		NMSS.updateFlagText(fullname, 'flagging')
 
+		var submitPOST = {
+			title: title,
+			url: newURL,
+			kind: 'link',
+			sendreplies: false,
+			sr: NMSS.settings.srdb,
+			uh: NMSS.modhash
+		}
+
+		if (captcha) {
+			submitPOST.iden = captcha.iden
+			submitPOST.captcha = captcha.text
+		}
+
 		$.post(
 			'/api/submit.json',
-			{
-				title: title,
-				url: newURL,
-				kind: 'link',
-				sendreplies: false,
-				sr: NMSS.settings.srdb,
-				uh: NMSS.modhash
-			},
+			submitPOST,
 			function(data, textStatus, jQxhr) {
 				var resp = data.jquery
+				var isError1 = resp && resp[18] && resp[18][3][0]
+				var isError2 = resp && resp[26] && resp[26][3][0]
 
-				if (resp && resp[16]) {
-					var match = resp[16][3][0].match(/\/r\/([A-Za-z0-9_]+)\/comments\/([^\/]+)\//)
-					var postID = 't3_'+match[2]
-
-					if (resp[18] && (resp[18][3][0] === ".error.ALREADY_SUB.field-url")) {
+				if ((isError1 !== undefined) && isError1.startsWith('.error.')) {
+					if (isError1 === '.error.BAD_CAPTCHA.field-captcha') {
+						NMSS.LOG('[NMSS] CAPTCHA required or incorrect: '+fullname)
+						NMSS.showCAPTCHA(resp[16][3][0],
+							function(captcha) {
+								NMSS.flagPost(thing, captcha)
+							},
+							function() {
+								NMSS.updateFlagText(fullname, 'unflagged')
+							}
+						)
+					}
+					else if (isError1 === '.error.ALREADY_SUB.field-url') {
 						NMSS.LOG('[NMSS] submission exists: '+fullname)
-						if (match) {
+						var match = resp[16][3][0].match(/\/r\/([A-Za-z0-9_]+)\/comments\/([^\/]+)\//)
+						if (match && (match[2] !== null)) {
+							var postID = 't3_'+match[2]
 							NMSS.votePost(postID, 1, function(ok, data) {
 								NMSS.updateFlagText(fullname, ok ? 'flagged' : 'unflagged')
 								NMSS.LOG('[NMSS] flag (upvote) '+(ok ? 'OK' : 'ERROR')+': '+fullname)
@@ -122,16 +145,35 @@ NMSS.clickedFlag = function(event) {
 							})
 						}
 					}
+					// else if (isError1 === '.error.RATELIMIT.field-ratelimit') {
+					// }
 					else {
+						NMSS.LOG('[NMSS] flag (submit) ERROR: '+fullname)
+						$.prompt('reddit said:<br />'+resp[22][3][0], {title: 'Oops', persistent: false})
+						NMSS.updateFlagText(fullname, 'unflagged')
+					}
+				}
+				else if ((isError2 !== undefined) && isError2.startsWith('.error.')) {
+					// if (isError2 === '.error.QUOTA_FILLED') {
+					// }
+					// else {
+						NMSS.LOG('[NMSS] flag (submit) ERROR: '+fullname)
+						$.prompt('reddit said:<br />'+resp[30][3][0], {title: 'Oops', persistent: false})
+						NMSS.updateFlagText(fullname, 'unflagged')
+					// }
+				}
+				else {
+					if (resp && resp[16]) {
+						var match = resp[16][3][0].match(/\/r\/([A-Za-z0-9_]+)\/comments\/([^\/]+)\//)
 						NMSS.updateFlagText(fullname, 'flagged')
-						NMSS.flagged[fullname] = postID
+						NMSS.flagged[fullname] = 't3_'+match[2]
 						NMSS.saveFlagged()
 						NMSS.LOG('[NMSS] flag (submit) OK: '+fullname)
 					}
-				}
-				else {
-					NMSS.updateFlagText(fullname, 'unflagged')
-					NMSS.LOG('[NMSS] flag (submit) ERROR: '+fullname)
+					else {
+						NMSS.updateFlagText(fullname, 'unflagged')
+						NMSS.LOG('[NMSS] flag (submit) ERROR: '+fullname)
+					}
 				}
 			}
 		)
@@ -203,6 +245,65 @@ NMSS.hidePost = function(what) {
 	}
 
 	thing.addClass('flaggedSobStory')
+}
+
+NMSS.showCAPTCHA = function(iden, callback, cbCancel) {
+	$.prompt.close()
+
+	var msg =  '\
+		<div>\
+		  <div>\
+		    <div style="float: left; width: 55%;">Enter the text you see in the image:</div>\
+		    <div style="float: left; width: 45%;"><input type="text" name="text" class="nmssCaptchaText" value=""></div>\
+		  </div>\
+		  <div>\
+		    <div style="float: left; width: 55%;">&nbsp;</div>\
+		    <div style="float: left; width: 45%; margin-top: 5px"><img class="nmssCaptchaImg" src="/captcha/'+iden+'.png'+'" /></div>\
+		  </div>\
+		</div>\
+		<input type="hidden" name="iden" class="nmssCaptchaIden" value="'+iden+'">\
+	'
+
+	var options = {
+		title: 'reddit wants to know if you\'re human',
+		buttons: { 'get new image': -1, 'cancel': 0, 'continue': 1 },
+		focus: 'input[name="text"]',
+		defaultButton: 2,
+		persistent: false,
+		close: function(e,v,m,f) {
+			if ((v === undefined) && cbCancel) {
+				cbCancel()
+			}
+		},
+		submit: function(e,v,m,f) {
+			if (v === -1) {
+				e.preventDefault()
+				var el = $(this)
+				$.post(
+					'/api/new_captcha.json',
+					function(data) {
+						if (data && data.jquery && data.jquery[11]) {
+							var newIden = data.jquery[11][3][0]
+							el.find('input.nmssCaptchaIden').attr('value', newIden)
+							el.find('img.nmssCaptchaImg').attr('src', '/captcha/'+newIden+'.png')
+							el.find('input.nmssCaptchaText').focus()
+						}
+					}
+				)
+			}
+			else if (v === 0) {
+				cbCancel && cbCancel()
+			}
+			else {
+				callback && callback({
+					iden: f.iden,
+					text: f.text
+				})
+			}
+		}
+	}
+
+	$.prompt(msg, options)
 }
 
 NMSS.toggleNMSSEnabled = function() {

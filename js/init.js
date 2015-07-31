@@ -5,16 +5,7 @@ NMSS.LOG = NMSS.DEBUG ? console.log.bind(console) : function() {}
 NMSS.init = function() {
 	NMSS.loadSettings()
 	NMSS.loadFlagged()
-
-	NMSS.sobs = $.parseJSON(localStorage.getItem('sobs'))
-	NMSS.sobsTime = localStorage.getItem('sobsTime')
-
-	if (!NMSS.sobs || !NMSS.sobsTime || ((Date.now()-NMSS.sobsTime) >= NMSS.settings.fetchInterval*1000)) {
-		NMSS.fetchSobs()
-	}
-	else {
-		NMSS.LOG('[NMSS] using '+Object.keys(NMSS.sobs).length+' cached sob stories')
-	}
+	NMSS.loadSobs()
 }
 
 NMSS.loadSettings = function() {
@@ -22,6 +13,7 @@ NMSS.loadSettings = function() {
 		enabled: true,
 		threshold: 100,
 		fetchInterval: 300, // in seconds (300 seconds = 5 minutes)
+		checkCaptchaInterval: 300, // in seconds (300 seconds = 5 minutes)
 		downvote: false,
 		srdb: 'NoMoreSobStories',
 		subs: ['/r/pics']
@@ -55,35 +47,43 @@ NMSS.saveFlagged = function() {
 	localStorage.setItem('flagged', JSON.stringify(NMSS.flagged))
 }
 
-NMSS.fetchSobs = function() {
-	NMSS.LOG('[NMSS] fetching sob stories...')
-	$.get(
-		'/r/'+NMSS.settings.srdb+'.json',
-		{
-			t: 'month',
-			show: 'all',
-			limit: 50
-		},
-		function (data) {
-			NMSS.sobs = {}
-			NMSS.sobsTime = Date.now()
+NMSS.loadSobs = function() {
+	NMSS.sobs = $.parseJSON(localStorage.getItem('sobs'))
+	NMSS.sobsTime = localStorage.getItem('sobsTime')
 
-			$(data.data.children).each(function(index, child) {
-				var match = child.data.url.match(/\/r\/([A-Za-z0-9_]+)\/comments\/([^\/]+)\//)
-				if (match && match[2]) {
-					NMSS.sobs['t3_'+match[2]] = child.data.score
-				}
-			})
+	if (!NMSS.sobs || !NMSS.sobsTime || ((Date.now()-NMSS.sobsTime) >= NMSS.settings.fetchInterval*1000)) {
+		NMSS.LOG('[NMSS] fetching sob stories...')
+		$.get(
+			'/r/'+NMSS.settings.srdb+'.json',
+			{
+				t: 'month',
+				show: 'all',
+				limit: 50
+			},
+			function (data) {
+				NMSS.sobs = {}
+				NMSS.sobsTime = Date.now()
 
-			localStorage.setItem('sobs', JSON.stringify(NMSS.sobs))
-			localStorage.setItem('sobsTime', JSON.stringify(NMSS.sobsTime))
+				$(data.data.children).each(function(index, child) {
+					var match = child.data.url.match(/\/r\/([A-Za-z0-9_]+)\/comments\/([^\/]+)\//)
+					if (match && match[2]) {
+						NMSS.sobs['t3_'+match[2]] = child.data.score
+					}
+				})
 
-			NMSS.LOG('[NMSS] fetched '+Object.keys(NMSS.sobs).length+' sob stories')
-		}
-	)
-	.fail(function(jqXhr, textStatus, errorThrown) {
-		NMSS.LOG(errorThrown)
-	})
+				localStorage.setItem('sobs', JSON.stringify(NMSS.sobs))
+				localStorage.setItem('sobsTime', JSON.stringify(NMSS.sobsTime))
+
+				NMSS.LOG('[NMSS] fetched '+Object.keys(NMSS.sobs).length+' sob stories')
+			}
+		)
+		.fail(function(jqXhr, textStatus, errorThrown) {
+			NMSS.LOG(errorThrown)
+		})
+	}
+	else {
+		NMSS.LOG('[NMSS] Using '+Object.keys(NMSS.sobs).length+' cached sob stories')
+	}
 }
 
 NMSS.init()
