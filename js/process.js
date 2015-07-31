@@ -1,9 +1,10 @@
 NMSS.process = function(modhash) {
-	NMSS.modhash = modhash
+	NMSS.modhash = modhash || NMSS.modhash
 	NMSS.loggedIn = $('body').hasClass('loggedin')
 
 	if (NMSS.settings.enabled) {
 		$('body').addClass('nmssEnabled')
+		$('body').addClass('nmssProcessed')
 
 		if ($('body').hasClass('listing-page')) {
 			NMSS.processPosts()
@@ -17,7 +18,7 @@ NMSS.process = function(modhash) {
 		}
 	}
 
-	if ($('#RESDropdownOptions')) {
+	if ($('#RESDropdownOptions') && !$('#NMSSToggleRESDropdown').length) {
 		NMSS.addRESToggle()
 	}
 }
@@ -67,7 +68,13 @@ NMSS.addFlagLink = function(obj, fullname) {
 }
 
 NMSS.clickedFlag = function(event) {
-	var fullname = $(this).parents("div.thing").attr('data-fullname')
+	var thing = $(this).parents("div.thing")
+	var fullname = thing.attr('data-fullname')
+	var title = thing.find('p.title a.title').text()
+
+	var originalURL = thing.find('ul.buttons a.comments').attr('href')
+	var partialURL = originalURL.match(/(\/r\/([A-Za-z0-9_]+)\/comments\/(.+)\/)/)
+	var newURL = 'http://www.reddit.com' + partialURL[0]
 
 	event.preventDefault()
 
@@ -88,18 +95,19 @@ NMSS.clickedFlag = function(event) {
 		$.post(
 			'/api/submit.json',
 			{
-				url: fullname,
+				title: title,
+				url: newURL,
 				kind: 'link',
-				sr: 'NMSSdb',
-				title: fullname,
+				sendreplies: false,
+				sr: NMSS.settings.srdb,
 				uh: NMSS.modhash
 			},
 			function(data, textStatus, jQxhr) {
 				var resp = data.jquery
 
 				if (resp && resp[16]) {
-					var match = resp[16][3][0].match(/\/r\/NMSSdb\/comments\/([^\/]+)\//)
-					var postID = 't3_'+match[1]
+					var match = resp[16][3][0].match(/\/r\/([A-Za-z0-9_]+)\/comments\/([^\/]+)\//)
+					var postID = 't3_'+match[2]
 
 					if (resp[18] && (resp[18][3][0] === ".error.ALREADY_SUB.field-url")) {
 						NMSS.LOG('[NMSS] submission exists: '+fullname)
@@ -201,10 +209,14 @@ NMSS.toggleNMSSEnabled = function() {
 	NMSS.settings.enabled = !NMSS.settings.enabled
 	NMSS.saveSettings()
 	$('body').toggleClass('nmssEnabled')
+
+	if (!$('body').hasClass('nmssProcessed')) {
+		NMSS.process()
+	}
 }
 
 NMSS.addRESToggle = function() {
-	var li = $('<li title="Toggle Sob Story Filter">sob story filter</li>')
+	var li = $('<li title="Toggle Sob Story Filter" id="NMSSToggleRESDropdown">sob story filter</li>')
 		.click(function() {
 			NMSS.toggleNMSSEnabled()
 			$('#sobstorySwitchToggle').toggleClass('enabled')
