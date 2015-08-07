@@ -1,5 +1,5 @@
 NMSS = {}
-NMSS.DEBUG = true
+NMSS.DEBUG = false
 NMSS.LOG = NMSS.DEBUG ? console.log.bind(console) : function() {}
 
 NMSS.init = function() {
@@ -11,7 +11,7 @@ NMSS.init = function() {
 NMSS.loadSettings = function() {
 	NMSS.settings = {
 		enabled: true,
-		threshold: 100,
+		threshold: 50,
 		fetchInterval: 300, // in seconds (300 seconds = 5 minutes)
 		checkCaptchaInterval: 300, // in seconds (300 seconds = 5 minutes)
 		downvote: false,
@@ -54,7 +54,7 @@ NMSS.loadSobs = function() {
 	if (!NMSS.sobs || !NMSS.sobsTime || ((Date.now()-NMSS.sobsTime) >= NMSS.settings.fetchInterval*1000)) {
 		NMSS.LOG('[NMSS] fetching sob stories...')
 		$.get(
-			'/r/'+NMSS.settings.srdb+'.json',
+			'/r/'+NMSS.settings.srdb+'/top.json',
 			{
 				t: 'month',
 				show: 'all',
